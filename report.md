@@ -1,45 +1,13 @@
-Step 4 Report
-
-Model used:
-- Gemini via the Google Generative Language API
-- Default app setting: gemini-2.0-flash
-
-What I built:
-
-- A small Python CLI in `app.py`
-- The script reads `GEMINI_API_KEY` from the environment
-- It sends rough research notes to Gemini and returns a structured summary
-- The prompt is designed to avoid hallucination and to separate uncertain facts from confirmed ones
-
-Evaluation summary:
-
-1. FDA device fact case
-- Expected result: extract device, sensor type, and study size clearly
-- Likely outcome: should pass because the input is short and fact-based
-
-2. Lab meeting notes case
-- Expected result: identify people, project topic, and to-do item
-- Likely outcome: should pass because the notes are explicit and well-scoped
-
-3. Writing task case
-- Expected result: summarize the writing goal and preserve the 950+ device count
-- Likely outcome: should pass because the data point is directly stated
-
-4. Messy notes edge case
-- Expected result: move incomplete information into "Questions to Ask" or "Uncertain Items"
-- Likely outcome: should mostly pass because the prompt explicitly tells the model not to treat uncertain details as confirmed facts
-
-5. Missing-information failure case
-- Expected result: refuse to invent the author or accuracy value
-- Main risk: the model may still try to over-complete the summary if the prompt is not strict enough
-- Mitigation used: the system prompt explicitly says to state that key details are missing instead of guessing
-
-Main lesson:
-
-The most important part of this workflow is not just summarization. It is making the model handle incomplete notes safely. A strong prompt helps the model organize messy research notes while reducing the chance that it fabricates missing details.
-
-How to run:
-
-`export GEMINI_API_KEY='your_key_here'`
-
-`python3 app.py --input "Met with Yu and Yichen. We discussed the PPG sensor project. Yu needs to finish the data cleaning by Friday."`
+This report evaluates the development of my LLM-powered command-line interface (CLI) designed to structure rough, stream-of-consciousness research notes into standardized internal documentation. The final prototype successfully categorizes inputs, identifies knowledge gaps, and refuses to hallucinate missing data.
+During the engineering of this prototype, several technical and environmental hurdles were encountered and resolved:
+	• API Versioning & Quota Limits: Initial testing with Gemini models resulted in 404 (Not Found) errors due to model deprecation, and upgrading to gemini-2.0-flash quickly triggered HTTP 429 "Resource Exhausted" blocks on the Free Tier. This fragility required an architectural pivot to a more stable, free-tier-friendly API.
+	• Version Control Conflicts: Synchronizing the updated code resulted in a Git merge conflict, where remote changes clashed with local environment fixes. This required manual conflict resolution in the IDE to isolate and preserve the working OpenRouter configuration before pushing the final commit.
+	• Terminal Environment Variables: Testing highlighted how sensitive CLI tools are to terminal environments (e.g., hanging string quotes or executing outside the root directory). This reinforced the decision to use standard libraries with clear, configurable arguments.
+Because of the quota limitations mentioned above, the architecture was pivoted away from Google AI Studio to utilize the OpenRouter API, specifically targeting the openrouter/free endpoint (which frequently routes to highly capable open-weight models like Llama 3).
+This pivot ensured consistent availability and zero-cost prototyping while maintaining the required inference quality for complex prompt adherence. The application was built using standard Python libraries (urllib, argparse) to ensure seamless reproducibility across the research team's environments without dependency conflicts.
+The system instructions required significant iteration to safely handle real-world research notes.
+	• Baseline Vulnerability: The initial prompt ("Format these notes into: Key Takeaways, Methodology, and Action Items") forced the model to fill required headers regardless of the input. When tested against messy notes (e.g., "ask Weiguang"), the model hallucinated formal "Methodology" steps to comply with the structural constraints.
+	• The "Missing Information" Guardrail: The final system instruction introduced a strict anti-hallucination guardrail and a dedicated bucket for ambiguity: "If any notes are unclear, group them into 'Uncertain Items/Questions'. CRITICAL: If important details are missing, explicitly state 'Information Missing'."
+	• Final Results: When tested against a failure case lacking context ("Reading a paper on wearable ECGs. It's good"), the final prompt successfully suppressed hallucinations. It explicitly printed "Information Missing" under the Methodology header and utilized the "Uncertain Items" section to autonomously generate relevant follow-up questions for the researcher (e.g., "What specific aspects were deemed 'good'?").
+If I were to deploy this CLI tool for my research team, I would recommend having a strict "Human-in-the-Loop" (HITL) requirement.
+While the model is highly effective at structuring raw text, researchers would need to review the "Uncertain Items/Questions" section before committing the notes to the central database. This would ensure that any flagged knowledge gaps or generated follow-up questions are manually addressed, preventing incomplete data from skewing future literature reviews.
